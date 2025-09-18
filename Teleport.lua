@@ -1,20 +1,28 @@
+-- // SERVICES
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local player = Players.LocalPlayer
-local hrp = player.Character and player.Character:WaitForChild("HumanoidRootPart")
+local RunService = game:GetService("RunService")
 
+-- // PLAYER
+local player = Players.LocalPlayer
+
+-- // VARIABLES
+local MAX_SLOTS = 20
+local delayAntarSlot = 3
 local lokasi = {}
-for i = 1, 20 do
+local checkboxes = {}
+local autoTeleport = false
+
+for i = 1, MAX_SLOTS do
     lokasi["Lokasi "..i] = nil
+    checkboxes[i] = false
 end
 
-local autoTeleport = false
-local delayAntarSlot = 3
-local checkboxes = {}
-
+-- // GUI
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 gui.Name = "MiniTeleportGUI"
 
+-- Frame utama
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 180, 0, 300)
 frame.AnchorPoint = Vector2.new(0.5,0.5)
@@ -29,6 +37,7 @@ local gradient = Instance.new("UIGradient", frame)
 gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,45)), ColorSequenceKeypoint.new(1, Color3.fromRGB(60,60,70))})
 gradient.Rotation = 45
 
+-- Title
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,28)
 title.Position = UDim2.new(0,0,0,0)
@@ -39,6 +48,7 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Center
 
+-- Close button
 local closeBtn = Instance.new("TextButton", frame)
 closeBtn.Size = UDim2.new(0,22,0,22)
 closeBtn.Position = UDim2.new(1,-26,0,3)
@@ -47,12 +57,18 @@ closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextSize = 14
 closeBtn.TextColor3 = Color3.fromRGB(245,230,180)
 closeBtn.BackgroundTransparency = 1
-closeBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(frame, TweenInfo.new(0.3), {Size=UDim2.new(0,0,0,0), Position=UDim2.fromScale(0.5,0.5)}):Play()
-    task.wait(0.3)
-    gui:Destroy()
-end)
 
+-- Minimize button
+local minBtn = Instance.new("TextButton", frame)
+minBtn.Size = UDim2.new(0,22,0,22)
+minBtn.Position = UDim2.new(1,-52,0,3)
+minBtn.Text = ">"
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 14
+minBtn.TextColor3 = Color3.fromRGB(245,230,180)
+minBtn.BackgroundTransparency = 1
+
+-- Open button (tampil saat minimize)
 local openBtn = Instance.new("TextButton", gui)
 openBtn.Size = UDim2.new(0,25,0,25)
 openBtn.AnchorPoint = Vector2.new(0.5,0.5)
@@ -64,14 +80,12 @@ openBtn.BackgroundColor3 = Color3.fromRGB(40,40,50)
 openBtn.BorderSizePixel = 0
 openBtn.Visible = false
 
-local minBtn = Instance.new("TextButton", frame)
-minBtn.Size = UDim2.new(0,22,0,22)
-minBtn.Position = UDim2.new(1,-52,0,3)
-minBtn.Text = ">"
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 14
-minBtn.TextColor3 = Color3.fromRGB(245,230,180)
-minBtn.BackgroundTransparency = 1
+-- Close / Minimize / Open logic
+closeBtn.MouseButton1Click:Connect(function()
+    TweenService:Create(frame, TweenInfo.new(0.3), {Size=UDim2.new(0,0,0,0), Position=UDim2.fromScale(0.5,0.5)}):Play()
+    task.wait(0.3)
+    gui:Destroy()
+end)
 
 minBtn.MouseButton1Click:Connect(function()
     TweenService:Create(frame, TweenInfo.new(0.3), {Size=UDim2.new(0,40,0,28)}):Play()
@@ -87,12 +101,13 @@ openBtn.MouseButton1Click:Connect(function()
     TweenService:Create(frame, TweenInfo.new(0.3), {Size=UDim2.new(0,180,0,300)}):Play()
 end)
 
+-- ScrollFrame untuk daftar slot
 local scrollFrame = Instance.new("ScrollingFrame", frame)
 scrollFrame.Size = UDim2.new(1,-10,1,-90)
 scrollFrame.Position = UDim2.new(0,5,0,30)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
-scrollFrame.CanvasSize = UDim2.new(0,0,0,20*28)
+scrollFrame.CanvasSize = UDim2.new(0,0,0,MAX_SLOTS*28)
 scrollFrame.ScrollBarThickness = 5
 scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 
@@ -100,6 +115,7 @@ local layout = Instance.new("UIListLayout", scrollFrame)
 layout.Padding = UDim.new(0,3)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 
+-- Tombol Save Slot
 local saveBtn = Instance.new("TextButton", frame)
 saveBtn.Size = UDim2.new(1,-10,0,22)
 saveBtn.Position = UDim2.new(0,5,1,-48)
@@ -118,19 +134,19 @@ slotBox.BorderSizePixel = 0
 
 saveBtn.MouseButton1Click:Connect(function()
     local slot = tonumber(slotBox.Text)
-    if slot and slot>=1 and slot<=20 then
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if slot and slot>=1 and slot<=MAX_SLOTS and hrp then
         lokasi["Lokasi "..slot] = hrp.Position
         saveBtn.Text = "Slot "..slot.." Saved!"
-        task.wait(1.5)
-        saveBtn.Text = "Save Current Location"
     else
-        saveBtn.Text = "Invalid Slot!"
-        task.wait(1.5)
-        saveBtn.Text = "Save Current Location"
+        saveBtn.Text = "Invalid Slot / HRP not found!"
     end
+    task.wait(1.5)
+    saveBtn.Text = "Save Current Location"
 end)
 
-for i=1,20 do
+-- Buat daftar slot
+for i=1,MAX_SLOTS do
     local container = Instance.new("Frame", scrollFrame)
     container.Size = UDim2.new(1,0,0,25)
     container.BackgroundTransparency = 1
@@ -150,12 +166,6 @@ for i=1,20 do
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
 
-    checkboxes[i] = false
-    box.MouseButton1Click:Connect(function()
-        checkboxes[i] = not checkboxes[i]
-        box.BackgroundColor3 = checkboxes[i] and Color3.fromRGB(80,80,90) or Color3.fromRGB(70,70,80)
-    end)
-
     local btn = Instance.new("TextButton", container)
     btn.Size = UDim2.new(0.35,0,1,0)
     btn.Position = UDim2.new(0.65,0,0,0)
@@ -164,11 +174,25 @@ for i=1,20 do
     btn.TextColor3 = Color3.fromRGB(245,230,180)
     btn.BorderSizePixel = 0
 
+    checkboxes[i] = false
+    box.MouseButton1Click:Connect(function()
+        checkboxes[i] = not checkboxes[i]
+        box.BackgroundColor3 = checkboxes[i] and Color3.fromRGB(80,255,80) or Color3.fromRGB(70,70,80)
+    end)
+
     btn.MouseButton1Click:Connect(function()
-        if lokasi["Lokasi "..i] then hrp.CFrame = CFrame.new(lokasi["Lokasi "..i]) else btn.Text = "Empty!" task.wait(1.5) btn.Text="Teleport" end
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if lokasi["Lokasi "..i] and hrp then
+            hrp.CFrame = CFrame.new(lokasi["Lokasi "..i] + Vector3.new(0,3,0))
+        else
+            btn.Text = "Empty!"
+            task.wait(1.5)
+            btn.Text = "Teleport"
+        end
     end)
 end
 
+-- Tombol Auto Teleport
 local autoBtn = Instance.new("TextButton", frame)
 autoBtn.Size = UDim2.new(1,-10,0,22)
 autoBtn.Position = UDim2.new(0,5,1,-24)
@@ -180,7 +204,8 @@ autoBtn.BorderSizePixel = 0
 autoBtn.MouseButton1Click:Connect(function()
     autoTeleport = not autoTeleport
     autoBtn.Text = autoTeleport and "Auto Teleport: ON" or "Auto Teleport: OFF"
-    autoBtn.BackgroundColor3 = autoTeleport and Color3.fromRGB(60,60,80) or Color3.fromRGB(50,50,70)
+    autoBtn.BackgroundColor3 = autoTeleport and Color3.fromRGB(60,255,60) or Color3.fromRGB(50,50,70)
+
     if autoTeleport then
         task.spawn(function()
             local index = 1
@@ -189,13 +214,15 @@ autoBtn.MouseButton1Click:Connect(function()
                 for i,v in pairs(checkboxes) do if v then table.insert(selected,i) end end
                 if #selected>0 then
                     local slotNum = selected[index]
-                    local slot = "Lokasi "..slotNum
-                    if lokasi[slot] then hrp.CFrame = CFrame.new(lokasi[slot]) end
+                    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and lokasi["Lokasi "..slotNum] then
+                        hrp.CFrame = CFrame.new(lokasi["Lokasi "..slotNum] + Vector3.new(0,3,0))
+                    end
                     index=index+1
                     if index>#selected then index=1 end
                     task.wait(delayAntarSlot)
                 else
-                    task.wait(1)
+                    task.wait(0.5)
                 end
             end
         end)
